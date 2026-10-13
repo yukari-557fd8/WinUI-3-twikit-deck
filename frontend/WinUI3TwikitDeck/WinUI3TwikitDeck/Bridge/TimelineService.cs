@@ -1,0 +1,304 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+using Twikit;
+
+namespace WinUI3TwikitDeck.Bridge
+{
+    /// <summary>
+    /// タイムライン・リスト・ユーザーツイートの取得（WinUI-3-twikit より移植）。
+    /// </summary>
+    internal static class TimelineService
+    {
+        private static readonly PageCursorStore<Tweet> TweetPages = new(capacity: 512);
+        private static readonly PageCursorStore<TwitterList> ListPages = new();
+        /// <summary>スクリーンネーム → ユーザー ID と固定ツイート ID。固定は変わるので一定時間で取り直す。</summary>
+        private sealed record ResolvedUser(string Id, HashSet<string> PinnedTweetIds, DateTime ResolvedAtUtc);
+
+        private static readonly TimeSpan ResolvedUserTtl = TimeSpan.FromMinutes(10);
+
+        private static readonly Dictionary<string, ResolvedUser> UsersByScreenName = new(StringComparer.OrdinalIgnoreCase);
+
+        private static string Describe(string? cursor) => string.IsNullOrEmpty(cursor) ? "なし" : "あり";
+
+        private static JsonObject TweetsPayload(JsonArray tweets, string? nextCursor)
+            => new() { ["tweets"] = tweets, ["next_cursor"] = nextCursor };
+
+        private static JsonObject ErrorTweets(string message)
+            => new() { ["error"] = message, ["tweets"] = new JsonArray(), ["next_cursor"] = null };
+
+        private static JsonArray SerializeUnique(IEnumerable<Tweet> page)
+        {
+            var results = new JsonArray();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var tweet in page)
+            {
+                if (!seen.Add(tweet.Id))
+                {
+                    continue;
+                }
+
+                results.Add(TweetSerializer.TweetToDict(tweet));
+            }
+
+            return results;
+        }
+
+        // --- ホームタイムライン ---
+        public static async Task<JsonObject> GetTimelineTweetsAsync(int pages, int? countPerPage, string timelineType, string? cursor)
+        {
+            var results = new JsonArray();
+            var currentCursor = string.IsNullOrEmpty(cursor) ? null : cursor;
+            var count = countPerPage ?? 20;
+
+            try
+            {
+                TwikitSession.Login();
+                var client = TwikitSession.Client;
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+
+                for (var i = 0; i < Math.Max(1, pages); i++)
+                {
+                    Debug.WriteLine($"{i + 1}ページ目取得中... (type: {timelineType}, cursor: {Describe(currentCursor)})");
+
+                    var (page, nextCursor) = await TweetPages.FetchAsync(
+                        currentCursor,
+                        count,
+                        c => timelineType == "latest"
+                            ? client.GetLatestTimelineAsync(count, null, c)
+                            : client.GetTimelineAsync(count, null, c)).ConfigureAwait(false);
+
+                    if (page.Count == 0)
+                    {
+                        Debug.WriteLine("これ以上取得できません");
+                        if (nextCursor is null)
+                        {
+                            currentCursor = null;
+                        }
+
+                        break;
+                    }
+
+                    Debug.WriteLine($"  └─ 取得したツイート数: {page.Count}");
+                    foreach (var tweet in page)
+                    {
+                        if (!seen.Add(tweet.Id))
+                        {
+                            continue;
+                        }
+
+                        results.Add(TweetSerializer.TweetToDict(tweet));
+                    }
+
+                    currentCursor = nextCursor;
+                    if (nextCursor is null)
+                    {
+                        Debug.WriteLine("next_cursor がありません");
+                        break;
+                    }
+
+                    Debug.WriteLine($"next_cursor 更新: {nextCursor}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"エラー: {ex.Message}");
+                if (results.Count == 0)
+                {
+                    return ErrorTweets(ex.Message);
+                }
+            }
+
+            Debug.WriteLine($"今回合計 {results.Count} 件取得");
+            return TweetsPayload(results, currentCursor);
+        }
+
+        // --- リスト一覧 ---
+        public static async Task<JsonObject> GetUserListsAsync(int count, string? cursor)
+        {
+            try
+            {
+                TwikitSession.Login();
+                var client = TwikitSession.Client;
+                Debug.WriteLine($"リスト一覧取得中... count={count} cursor={Describe(cursor)}");
+
+                var (page, nextCursor) = await ListPages.FetchAsync(cursor, count, c => client.GetListsAsync(count, c)).ConfigureAwait(false);
+
+                var lists = new JsonArray();
+                foreach (var list in page)
+                {
+                    lists.Add(new JsonObject
+                    {
+                        ["id"] = list.Id,
+                        ["name"] = list.Name ?? string.Empty,
+                        ["description"] = list.Description ?? string.Empty,
+                        ["mode"] = list.Mode,
+                        ["member_count"] = list.MemberCount,
+                        ["subscriber_count"] = list.SubscriberCount,
+                    });
+                }
+
+                Debug.WriteLine($"リスト {lists.Count} 件取得");
+                return new JsonObject { ["lists"] = lists, ["next_cursor"] = nextCursor };
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"リスト一覧取得エラー: {ex.Message}");
+                return new JsonObject { ["error"] = ex.Message, ["lists"] = new JsonArray(), ["next_cursor"] = null };
+            }
+        }
+
+        // --- リストのタイムライン ---
+        public static async Task<JsonObject> GetListTimelineAsync(string listId, int count, string? cursor)
+        {
+            var results = new JsonArray();
+            var nextCursor = string.IsNullOrEmpty(cursor) ? null : cursor;
+
+            try
+            {
+                TwikitSession.Login();
+                var client = TwikitSession.Client;
+                Debug.WriteLine($"リストタイムライン取得中... list_id={listId} count={count} cursor={Describe(cursor)}");
+
+                var (page, token) = await TweetPages.FetchAsync(cursor, count, c => client.GetListTweetsAsync(listId, count, c)).ConfigureAwait(false);
+                if (page.Count == 0)
+                {
+                    Debug.WriteLine("タイムラインが空です");
+                    return TweetsPayload([], null);
+                }
+
+                results = SerializeUnique(page);
+                nextCursor = token;
+                Debug.WriteLine(token is null ? "next_cursor がありません" : $"next_cursor 更新: {token}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"リストタイムライン取得エラー: {ex.Message}");
+                return ErrorTweets(ex.Message);
+            }
+
+            Debug.WriteLine($"リストタイムライン {results.Count} 件取得");
+            return TweetsPayload(results, nextCursor);
+        }
+
+        // --- 任意ユーザーのツイート ---
+        /// <param name="tweetType">Tweets（ツイート＋リポスト）/ Replies（ツイート＋返信）/ Media。</param>
+        public static async Task<JsonObject> GetUserTweetsAsync(string screenName, string tweetType, int count, string? cursor)
+        {
+            var name = ProfileService.NormalizeScreenName(screenName);
+            if (name.Length == 0)
+            {
+                return ErrorTweets("ユーザー名が空です");
+            }
+
+            var type = tweetType switch
+            {
+                "Replies" => "Replies",
+                "Media" => "Media",
+                _ => "Tweets",
+            };
+
+            try
+            {
+                TwikitSession.Login();
+                var client = TwikitSession.Client;
+                Debug.WriteLine($"ユーザーツイート取得中... screen_name={name} type={type} count={count} cursor={Describe(cursor)}");
+
+                // 1 ページ目（最新取得）のときは固定ツイートの変更を拾えるよう、期限切れなら取り直す
+                var user = await ResolveUserAsync(client, name, allowRefresh: string.IsNullOrEmpty(cursor)).ConfigureAwait(false);
+                return await UserTimelineAsync(client, user.Id, type, user.PinnedTweetIds, count, cursor, "ユーザーツイート").ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ユーザーツイート取得エラー: {ex.Message}");
+                return ErrorTweets(ex.Message);
+            }
+        }
+
+        // --- 自分のツイート ---
+        public static async Task<JsonObject> GetOwnTweetsAsync(int count, string? cursor)
+        {
+            try
+            {
+                TwikitSession.Login();
+                var client = TwikitSession.Client;
+                Debug.WriteLine($"自分のツイート取得中... count={count} cursor={Describe(cursor)}");
+
+                var user = await TwikitSession.GetAuthenticatedUserAsync().ConfigureAwait(false);
+                var pinned = new HashSet<string>(user.PinnedTweetIds, StringComparer.Ordinal);
+                return await UserTimelineAsync(client, user.Id, "Tweets", pinned, count, cursor, "自分のツイート").ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"自分のツイート取得エラー: {ex.Message}");
+                return ErrorTweets(ex.Message);
+            }
+        }
+
+        private static async Task<JsonObject> UserTimelineAsync(Client client, string userId, string tweetType, HashSet<string> pinnedTweetIds, int count, string? cursor, string label)
+        {
+            var (page, nextCursor) = await TweetPages.FetchAsync(
+                cursor,
+                count,
+                c => client.GetUserTweetsAsync(userId, tweetType, count, c)).ConfigureAwait(false);
+
+            if (page.Count == 0)
+            {
+                Debug.WriteLine($"{label}が空です");
+                return TweetsPayload([], null);
+            }
+
+            var results = SerializeUnique(page);
+
+            // twikit は Tweets の 1 ページ目の先頭に固定ツイートを入れるが、固定であることは Tweet に残らない。
+            // プロフィールの pinned_tweet_ids と突き合わせて印を付ける（カード表示と、更新時に先頭へ留めるため）。
+            if (tweetType == "Tweets" && pinnedTweetIds.Count > 0)
+            {
+                foreach (var node in results)
+                {
+                    if (node is JsonObject tweet
+                        && tweet["id"]?.GetValue<string>() is { } id
+                        && pinnedTweetIds.Contains(id)
+                        && !(tweet["is_retweet"]?.GetValue<bool>() ?? false))
+                    {
+                        tweet["is_pinned"] = true;
+                    }
+                }
+            }
+
+            Debug.WriteLine(nextCursor is null ? "next_cursor がありません" : $"next_cursor 更新: {nextCursor}");
+            Debug.WriteLine($"{label} {results.Count} 件取得");
+            return TweetsPayload(results, nextCursor);
+        }
+
+        /// <summary>
+        /// スクリーンネームからユーザー ID と固定ツイート ID を引く。
+        /// <paramref name="allowRefresh"/> が true で期限切れなら取り直す（固定ツイートの変更を反映する）。
+        /// </summary>
+        private static async Task<ResolvedUser> ResolveUserAsync(Client client, string screenName, bool allowRefresh)
+        {
+            lock (UsersByScreenName)
+            {
+                if (UsersByScreenName.TryGetValue(screenName, out var cached)
+                    && (!allowRefresh || DateTime.UtcNow - cached.ResolvedAtUtc < ResolvedUserTtl))
+                {
+                    return cached;
+                }
+            }
+
+            var user = await client.GetUserByScreenNameAsync(screenName).ConfigureAwait(false);
+            var resolved = new ResolvedUser(
+                user.Id,
+                new HashSet<string>(user.PinnedTweetIds, StringComparer.Ordinal),
+                DateTime.UtcNow);
+            lock (UsersByScreenName)
+            {
+                UsersByScreenName[screenName] = resolved;
+            }
+
+            return resolved;
+        }
+    }
+}

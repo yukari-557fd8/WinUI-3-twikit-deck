@@ -1,0 +1,80 @@
+<UserControl
+    x:Class="WinUI3TwikitDeck.Controls.NotificationCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WinUI3TwikitDeck.Controls"
+    x:DefaultBindMode="OneWay">
+    <UserControl.Resources>
+        <controls:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </UserControl.Resources>
+
+    <Border
+        Margin="0,4"
+        Padding="12"
+        CornerRadius="12"
+        Background="{ThemeResource TweetCardBackgroundBrush}"
+        BorderBrush="{ThemeResource TweetCardBorderBrush}"
+        BorderThickness="1">
+        <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <FontIcon
+                Glyph="{x:Bind Notification.IconGlyph}"
+                Foreground="{x:Bind Notification.IconForeground}"
+                FontSize="18"
+                Margin="0,4,0,0"
+                VerticalAlignment="Top" />
+
+            <StackPanel Grid.Column="1" Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PersonPicture
+                        Width="32"
+                        Height="32"
+                        VerticalAlignment="Center"
+                        ProfilePicture="{x:Bind Notification.ActorProfileImage}" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock
+                            Text="{x:Bind Notification.ActorName}"
+                            FontWeight="SemiBold"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock
+                            Text="{x:Bind Notification.ActorScreenName}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock
+                    Text="{x:Bind Notification.Text}"
+                    TextWrapping="Wrap"
+                    FontSize="14"
+                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+                <Border
+                    Visibility="{x:Bind Notification.HasTargetTweet, Converter={StaticResource BoolToVisibilityConverter}}"
+                    BorderBrush="{ThemeResource QuotedTweetCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10"
+                    Background="{ThemeResource QuotedTweetCardBackgroundBrush}">
+                    <TextBlock
+                        Text="{x:Bind Notification.TargetTweetText}"
+                        TextWrapping="Wrap"
+                        FontSize="13"
+                        MaxLines="4"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Border>
+
+                <TextBlock
+                    Text="{x:Bind Notification.CreatedAtAbsoluteDisplay}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

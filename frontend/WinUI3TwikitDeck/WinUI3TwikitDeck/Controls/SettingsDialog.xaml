@@ -1,0 +1,33 @@
+<ContentDialog
+    x:Class="WinUI3TwikitDeck.Controls.SettingsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="アカウント設定 (Cookie)"
+    PrimaryButtonText="保存して適用"
+    CloseButtonText="キャンセル"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="16" Width="400">
+        <TextBlock
+            Text="Twitter / X の auth_token と ct0 を入力してください。WinUI-3-twikit-deck\data\cookies.json に保存されます。"
+            TextWrapping="Wrap"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="auth_token" FontWeight="SemiBold" />
+            <PasswordBox x:Name="AuthTokenBox" PlaceholderText="auth_token を入力" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="ct0" FontWeight="SemiBold" />
+            <PasswordBox x:Name="Ct0Box" PlaceholderText="ct0 を入力" />
+        </StackPanel>
+
+        <TextBlock
+            x:Name="StatusTextBlock"
+            TextWrapping="Wrap"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+    </StackPanel>
+</ContentDialog>

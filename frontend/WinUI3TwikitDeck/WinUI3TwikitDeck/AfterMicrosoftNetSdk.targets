@@ -1,0 +1,36 @@
+<Project>
+  <!--
+    WinUI3TwikitDeck.csproj の AfterMicrosoftNETSdkTargets から import される（Microsoft.NET.Sdk.targets の末尾）。
+
+    パッケージ プロジェクト（wapproj）の DesktopBridge は、このプロジェクトを RuntimeIdentifier=win-x64 で呼び、
+    Microsoft.DesktopBridge.Common.targets の DesktopBridgeFrameworkSDKRegistrationOutputGroup が参照プロジェクトへ
+    同じグローバル プロパティのまま再帰する（GlobalPropertiesToRemove を見ない）。
+    twikit-dotnet は RID を持たない net8.0 ライブラリで、その RID 向けには復元されていないため、
+    初回クローン直後のビルドで NETSDK1047（project.assets.json に net8.0/win-x64 が無い）になる。
+
+    ここでは同じターゲットを、再帰時に RuntimeIdentifier / SelfContained を外す形で定義し直す。
+    自プロジェクトの FrameworkSdkReference（Microsoft.WindowsAppRuntime のパッケージ依存）はそのまま返すので
+    AppxManifest の PackageDependency は従来どおり生成される。
+  -->
+  <Target Name="DesktopBridgeFrameworkSDKRegistrationOutputGroup"
+          DependsOnTargets="$(DesktopBridgeFrameworkSDKRegistrationOutputGroupDependsOn)"
+          Returns="@(DesktopBridgeFrameworkSDKRegistrationOutputGroupOutputs)">
+    <ItemGroup>
+      <DesktopBridgeFrameworkSDKRegistrationOutputGroupOutputs Include="@(FrameworkSdkReference)" />
+    </ItemGroup>
+
+    <MSBuild
+      Projects="@(ProjectReferenceWithConfiguration)"
+      Targets="_GenerateAdditionalFrameworkSDKReference;_GetRecursiveResolvedSDKReferences;DesktopBridgeFrameworkSDKRegistrationOutputGroup"
+      BuildInParallel="$(BuildInParallel)"
+      Properties="%(ProjectReferenceWithConfiguration.SetConfiguration); %(ProjectReferenceWithConfiguration.SetPlatform)"
+      RemoveProperties="RuntimeIdentifier;SelfContained;RuntimeIdentifiers;%(ProjectReferenceWithConfiguration.GlobalPropertiesToRemove)"
+      Condition="'@(ProjectReferenceWithConfiguration)' != ''
+                 and '%(ProjectReferenceWithConfiguration.BuildReference)' == 'true'
+                 and '%(ProjectReferenceWithConfiguration.ReferenceOutputAssembly)' == 'true'"
+      SkipNonexistentTargets="true"
+      ContinueOnError="true">
+      <Output TaskParameter="TargetOutputs" ItemName="DesktopBridgeFrameworkSDKRegistrationOutputGroupOutputs" />
+    </MSBuild>
+  </Target>
+</Project>

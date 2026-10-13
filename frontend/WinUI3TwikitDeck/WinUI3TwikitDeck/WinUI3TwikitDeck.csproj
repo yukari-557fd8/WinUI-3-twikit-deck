@@ -1,0 +1,85 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+        <RootNamespace>WinUI3TweetDeck</RootNamespace>
+        <Platforms>x86;x64;ARM64</Platforms>
+        <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+        <UseWinUI>true</UseWinUI>
+        <Nullable>enable</Nullable>
+        <AppxBundlePlatforms>x86;x64;arm64</AppxBundlePlatforms>
+        <ApplicationIcon>TweetDeckIcon48.ico</ApplicationIcon>
+
+        <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    </PropertyGroup>
+    
+    <ItemGroup>
+    <Content Remove="Assets\TweetDeckIcon48.ico" />
+    </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
+  </ItemGroup>
+
+  <!--
+    twikit-dotnet（twikit の C# 移植）。
+    リポジトリ直下の twikit-dotnet/ に git submodule として取り込んでいる。
+    別の checkout を使う場合は環境変数 TWIKIT_DOTNET_DIR か MSBuild プロパティ TwikitDotnetDir で上書きする。
+  -->
+  <PropertyGroup>
+    <TwikitDotnetDir Condition="'$(TwikitDotnetDir)' == '' and '$(TWIKIT_DOTNET_DIR)' != ''">$([MSBuild]::EnsureTrailingSlash('$(TWIKIT_DOTNET_DIR)'))</TwikitDotnetDir>
+    <TwikitDotnetDir Condition="'$(TwikitDotnetDir)' == ''">$(MSBuildThisFileDirectory)..\..\..\twikit-dotnet\</TwikitDotnetDir>
+    <TwikitProjectPath>$(TwikitDotnetDir)src\Twikit\Twikit.csproj</TwikitProjectPath>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <AssemblyName>WinUI 3 TweetDeck</AssemblyName>
+    <AssemblyTitle>WinUI 3 TweetDeck</AssemblyTitle>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Twikit は RID を持たない net8.0 ライブラリ。パッケージ発行の win-x64 などを流すと NETSDK1047 になる。 -->
+    <ProjectReference Include="$(TwikitProjectPath)">
+      <GlobalPropertiesToRemove>RuntimeIdentifier;SelfContained</GlobalPropertiesToRemove>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!--
+    パッケージ プロジェクト（DesktopBridge）が参照プロジェクトへ RID を流して再帰する問題の回避。
+    Microsoft.NET.Sdk.targets の末尾で import されるよう AfterMicrosoftNETSdkTargets に登録する
+    （ファイルを置くだけでは import されない）。中身は AfterMicrosoftNetSdk.targets を参照。
+  -->
+  <PropertyGroup>
+    <AfterMicrosoftNETSdkTargets>$(AfterMicrosoftNETSdkTargets);$(MSBuildThisFileDirectory)AfterMicrosoftNetSdk.targets</AfterMicrosoftNETSdkTargets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="TweetDeckIcon48.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- submodule が未初期化（twikit-dotnet/ が空）のときは、MSB3202 より先に対処方法付きのエラーで止める -->
+  <Target Name="CheckTwikitDotnetSubmodule" BeforeTargets="Restore;Build" Condition="!Exists('$(TwikitProjectPath)')">
+    <Error Text="twikit-dotnet が見つかりません: $(TwikitProjectPath)。リポジトリ直下で `git submodule update --init --recursive` を実行してください（別の場所を使う場合は環境変数 TWIKIT_DOTNET_DIR を設定）。" />
+  </Target>
+
+</Project>

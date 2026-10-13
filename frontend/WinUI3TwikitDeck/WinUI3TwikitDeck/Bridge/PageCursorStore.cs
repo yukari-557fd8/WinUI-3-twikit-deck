@@ -1,0 +1,75 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
+using Twikit;
+
+namespace WinUI3TwikitDeck.Bridge
+{
+    /// <summary>
+    /// ページ送り用の <see cref="Result{T}"/> をトークンで保持する（WinUI-3-twikit より移植）。
+    /// </summary>
+    internal sealed class PageCursorStore<T>(int capacity = 256)
+    {
+        private const string TokenPrefix = "bridge:";
+
+        private readonly int _capacity = capacity;
+        private readonly object _gate = new();
+        private readonly Dictionary<string, Result<T>> _pages = new(StringComparer.Ordinal);
+        private readonly Queue<string> _order = new();
+
+        public static bool IsToken(string? cursor)
+            => cursor is not null && cursor.StartsWith(TokenPrefix, StringComparison.Ordinal);
+
+        public string Register(Result<T> page)
+        {
+            var token = TokenPrefix + Guid.NewGuid().ToString("N");
+            lock (_gate)
+            {
+                _pages[token] = page;
+                _order.Enqueue(token);
+                while (_order.Count > _capacity)
+                {
+                    _pages.Remove(_order.Dequeue());
+                }
+            }
+
+            return token;
+        }
+
+        public bool TryGet(string token, [MaybeNullWhen(false)] out Result<T> page)
+        {
+            lock (_gate)
+            {
+                return _pages.TryGetValue(token, out page);
+            }
+        }
+
+        /// <summary>
+        /// カーソルに対応するページを取得する。このストアのトークンなら蓄えたページの続き、
+        /// X のカーソル文字列（または null）ならそのまま <paramref name="fetch"/> に渡す。
+        /// </summary>
+        public async Task<(Result<T> Page, string? NextCursor)> FetchAsync(
+            string? cursor,
+            int count,
+            Func<string?, Task<Result<T>>> fetch)
+        {
+            Result<T> page;
+            if (!string.IsNullOrEmpty(cursor) && TryGet(cursor, out var previous))
+            {
+                page = await previous.NextAsync().ConfigureAwait(false);
+            }
+            else if (IsToken(cursor))
+            {
+                page = Result<T>.Empty();
+            }
+            else
+            {
+                page = await fetch(string.IsNullOrEmpty(cursor) ? null : cursor).ConfigureAwait(false);
+            }
+
+            var hasMore = page.NextCursor is not null || page.Count >= count;
+            return (page, hasMore ? Register(page) : null);
+        }
+    }
+}
