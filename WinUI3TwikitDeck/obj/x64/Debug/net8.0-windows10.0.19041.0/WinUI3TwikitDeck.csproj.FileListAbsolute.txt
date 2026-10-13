@@ -1,0 +1,1 @@
+/home/runner/work/WinUI-3-twikit-deck/WinUI-3-twikit-deck/WinUI3TwikitDeck/obj/x64/Debug/net8.0-windows10.0.19041.0/WinUI3TwikitDeck.csproj.AssemblyReference.cache
