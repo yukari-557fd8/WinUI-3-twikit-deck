@@ -6,6 +6,22 @@
     xmlns:viewmodels="using:WinUI3TwikitDeck.ViewModels"
     Title="WinUI 3 TweetDeck">
     <Grid x:Name="RootGrid" Background="{ThemeResource DeckPageBackgroundBrush}">
+        <Grid.Resources>
+            <!--
+              Twikit の状態表示。Foreground をコードから直接代入するとテーマ参照が切れて
+              ライト / ダーク切り替えに追従しなくなるため、ThemeResource を持つ Style を切り替える。
+            -->
+            <Style x:Key="StatusTextStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{ThemeResource CommandBarForeground}" />
+            </Style>
+            <Style x:Key="StatusTextWarningStyle" TargetType="TextBlock" BasedOn="{StaticResource StatusTextStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" />
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -32,12 +48,8 @@
                 <TextBlock
                     x:Name="TwikitStatusText"
                     Text="Twikit: Checking..."
-                    FontFamily="Cascadia Mono, Consolas"
-                    FontSize="13"
-                    VerticalAlignment="Center"
-                    TextTrimming="CharacterEllipsis"
+                    Style="{StaticResource StatusTextStyle}"
                     MaxWidth="480"
-                    Foreground="{ThemeResource CommandBarForeground}"
                     AutomationProperties.Name="Twikit の状態" />
                 <TextBlock
                     x:Name="ClockText"

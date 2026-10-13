@@ -83,16 +83,16 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private Microsoft.UI.Xaml.Media.Brush? _statusNormalBrush;
-
-    private static readonly Microsoft.UI.Xaml.Media.Brush StatusWarningBrush =
-        new Microsoft.UI.Xaml.Media.SolidColorBrush(Color.FromArgb(255, 0xF7, 0x63, 0x0C));
-
     private void ShowBridgeStatus(BridgeStatus status)
     {
-        _statusNormalBrush ??= TwikitStatusText.Foreground;
         TwikitStatusText.Text = status.Message;
-        TwikitStatusText.Foreground = status.Ok ? _statusNormalBrush : StatusWarningBrush;
+
+        // Foreground を直接代入するとテーマ参照が切れるので、ThemeResource を持つ Style で切り替える
+        var styleKey = status.Ok ? "StatusTextStyle" : "StatusTextWarningStyle";
+        if (RootGrid.Resources.TryGetValue(styleKey, out var style) && style is Style textStyle)
+        {
+            TwikitStatusText.Style = textStyle;
+        }
     }
 
     private MainViewModel? ViewModel => (Content as FrameworkElement)?.DataContext as MainViewModel;
