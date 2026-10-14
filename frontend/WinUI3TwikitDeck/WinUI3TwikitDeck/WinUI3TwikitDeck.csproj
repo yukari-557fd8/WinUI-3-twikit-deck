@@ -9,6 +9,8 @@
         <Nullable>enable</Nullable>
         <AppxBundlePlatforms>x86;x64;arm64</AppxBundlePlatforms>
         <ApplicationIcon>TweetDeckIcon48.ico</ApplicationIcon>
+        <!-- DPI 対応（PerMonitorV2）の宣言。無いと exe は DPI 非対応になり、拡大率 100% 以外でぼやける -->
+        <ApplicationManifest>app.manifest</ApplicationManifest>
 
         <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     </PropertyGroup>

@@ -48,6 +48,15 @@ namespace WinUI3TwikitDeck.Bridge
         public double Width { get; set; } = 380;
     }
 
+    /// <summary>保存されるデッキ全体の構成（カラムの並びと、カラム領域全体の設定）。</summary>
+    public sealed class DeckLayout
+    {
+        /// <summary>カラム幅をウィンドウに合わせる（各カラムの幅設定を比率として配分する）。</summary>
+        public bool FitColumnsToWindow { get; set; }
+
+        public IReadOnlyList<DeckColumnDefinition> Columns { get; set; } = [];
+    }
+
     /// <summary>カラム構成の保存・復元。</summary>
     internal static class DeckLayoutStore
     {
@@ -62,6 +71,10 @@ namespace WinUI3TwikitDeck.Bridge
             [JsonPropertyName("version")]
             public int Version { get; set; } = 1;
 
+            /// <summary>無い（古いファイル）ときは false = 固定幅。</summary>
+            [JsonPropertyName("fit_columns_to_window")]
+            public bool FitColumnsToWindow { get; set; }
+
             [JsonPropertyName("columns")]
             public List<DeckColumnDefinition> Columns { get; set; } = [];
         }
@@ -69,7 +82,7 @@ namespace WinUI3TwikitDeck.Bridge
         public static string Path => RepositoryPaths.DeckColumnsPath;
 
         /// <summary>保存済みの構成。ファイルが無い・壊れているときは null。</summary>
-        public static IReadOnlyList<DeckColumnDefinition>? Load()
+        public static DeckLayout? Load()
         {
             var path = Path;
             if (!File.Exists(path))
@@ -80,7 +93,16 @@ namespace WinUI3TwikitDeck.Bridge
             try
             {
                 var file = JsonSerializer.Deserialize<LayoutFile>(File.ReadAllText(path), JsonOptions);
-                return file?.Columns;
+                if (file is null)
+                {
+                    return null;
+                }
+
+                return new DeckLayout
+                {
+                    FitColumnsToWindow = file.FitColumnsToWindow,
+                    Columns = file.Columns,
+                };
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
             {
@@ -89,7 +111,7 @@ namespace WinUI3TwikitDeck.Bridge
             }
         }
 
-        public static void Save(IReadOnlyList<DeckColumnDefinition> columns)
+        public static void Save(DeckLayout layout)
         {
             var path = Path;
             try
@@ -100,7 +122,11 @@ namespace WinUI3TwikitDeck.Bridge
                     Directory.CreateDirectory(directory);
                 }
 
-                var file = new LayoutFile { Columns = new List<DeckColumnDefinition>(columns) };
+                var file = new LayoutFile
+                {
+                    FitColumnsToWindow = layout.FitColumnsToWindow,
+                    Columns = new List<DeckColumnDefinition>(layout.Columns),
+                };
                 File.WriteAllText(path, JsonSerializer.Serialize(file, JsonOptions));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -29,6 +29,11 @@ public abstract partial class ColumnViewModelBase : ObservableObject
 
     public static readonly IReadOnlyList<double> WidthChoices = [300, DefaultWidth, 480];
 
+    /// <summary>ウィンドウ幅に合わせるモードでの 1 カラムの下限・上限（DIP）。下限はカード内の操作行が収まる幅。</summary>
+    public const double MinFitWidth = 300;
+
+    public const double MaxFitWidth = 640;
+
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
     private DispatcherQueueTimer? _timer;
     private int _loadVersion;
@@ -60,6 +65,13 @@ public abstract partial class ColumnViewModelBase : ObservableObject
 
     [ObservableProperty]
     private double _width = DefaultWidth;
+
+    /// <summary>
+    /// 実際に表示する幅（DIP）。固定幅モードでは <see cref="Width"/> そのまま、
+    /// 「カラム幅をウィンドウに合わせる」モードでは <see cref="MainViewModel.UpdateColumnWidths"/> が配分した値。
+    /// </summary>
+    [ObservableProperty]
+    private double _displayWidth = DefaultWidth;
 
     [ObservableProperty]
     private string _lastUpdatedDisplay = string.Empty;
@@ -128,7 +140,12 @@ public abstract partial class ColumnViewModelBase : ObservableObject
         RaiseSettingsChanged();
     }
 
-    partial void OnWidthChanged(double value) => RaiseSettingsChanged();
+    partial void OnWidthChanged(double value)
+    {
+        // 固定幅モードの値。ウィンドウに合わせるモードでは直後の SettingsChanged で MainViewModel が配分し直す
+        DisplayWidth = value;
+        RaiseSettingsChanged();
+    }
 
     /// <summary>全件入れ替え。続き用カーソルも取り直す。</summary>
     public async Task LoadAsync(CancellationToken cancellationToken = default)

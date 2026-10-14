@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace WinUI3TwikitDeck.Controls;
@@ -24,11 +25,46 @@ internal static class DialogHelper
 
         try
         {
+            FitToWindow(dialog);
             return await dialog.ShowAsync();
         }
         finally
         {
             Volatile.Write(ref _open, 0);
         }
+    }
+
+    /// <summary>ContentDialog の中身の左右の余白（既定テンプレートの Padding）とウィンドウ端の余裕。</summary>
+    private const double DialogHorizontalChrome = 24 * 2 + 16;
+
+    /// <summary>
+    /// ダイアログの中身がウィンドウより広いときに縮める。
+    /// 各ダイアログの中身には固定幅・最小幅（400〜480 DIP）があり、低解像度や高い拡大率でウィンドウが
+    /// それより狭いと ContentDialog ごと切れてしまうため、ウィンドウの幅に収まる値に丸める。
+    /// </summary>
+    private static void FitToWindow(ContentDialog dialog)
+    {
+        if (dialog.XamlRoot is not { Size.Width: > 0 } root || dialog.Content is not FrameworkElement content)
+        {
+            return;
+        }
+
+        var available = root.Size.Width - DialogHorizontalChrome;
+        if (available <= 0)
+        {
+            return;
+        }
+
+        if (!double.IsNaN(content.Width) && content.Width > available)
+        {
+            content.Width = double.NaN;
+        }
+
+        if (content.MinWidth > available)
+        {
+            content.MinWidth = available;
+        }
+
+        content.MaxWidth = Math.Min(content.MaxWidth, available);
     }
 }

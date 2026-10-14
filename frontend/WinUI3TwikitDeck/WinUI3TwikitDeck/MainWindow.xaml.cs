@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Input;
 using Windows.UI;
 using WinUI3TwikitDeck.Bridge;
 using WinUI3TwikitDeck.Controls;
+using WinUI3TwikitDeck.Helpers;
 using WinUI3TwikitDeck.Services;
 using WinUI3TwikitDeck.ViewModels;
 
@@ -17,6 +18,8 @@ namespace WinUI3TwikitDeck;
 public sealed partial class MainWindow : Window
 {
     private readonly DispatcherQueueTimer _notificationTimer;
+    private readonly WindowPlacementManager _placement;
+    private bool _displayScaleTracked;
 
     public MainWindow()
     {
@@ -28,10 +31,16 @@ public sealed partial class MainWindow : Window
             AppWindow.SetIcon(iconPath);
         }
 
+        // ウィンドウの位置・サイズ: 保存があれば復元、無ければ表示するモニターの作業領域に合わせる（Activate の前に行う）
+        _placement = new WindowPlacementManager(this);
+        _placement.Restore();
+
         ApplyTitleBarTheme();
         if (Content is FrameworkElement root)
         {
             root.ActualThemeChanged += (_, _) => ApplyTitleBarTheme();
+            root.Loaded += (_, _) => TrackDisplayScale(root);
+            root.DataContextChanged += (_, _) => PushViewportWidth();
         }
 
         _notificationTimer = DispatcherQueue.CreateTimer();
@@ -98,6 +107,52 @@ public sealed partial class MainWindow : Window
     private MainViewModel? ViewModel => (Content as FrameworkElement)?.DataContext as MainViewModel;
 
     private XamlRoot? Root => (Content as FrameworkElement)?.XamlRoot;
+
+    // ---- 解像度・DPI ----
+
+    /// <summary>
+    /// 表示倍率を <see cref="DisplayScale"/> に反映する。XamlRoot.Changed は拡大率の違うモニターへ移動したときや
+    /// OS の拡大率を変えたときに発生する。レイアウトは XAML が自動で拡縮するが、画像のデコードサイズはこれに追従させる。
+    /// </summary>
+    private void TrackDisplayScale(FrameworkElement root)
+    {
+        if (_displayScaleTracked || root.XamlRoot is not { } xamlRoot)
+        {
+            return;
+        }
+
+        _displayScaleTracked = true;
+        DisplayScale.Update(xamlRoot.RasterizationScale);
+        xamlRoot.Changed += (sender, _) => DisplayScale.Update(sender.RasterizationScale);
+    }
+
+    private void DeckScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e) => PushViewportWidth();
+
+    /// <summary>カラム領域の幅（Padding を除く）を ViewModel に渡す。「カラム幅をウィンドウに合わせる」の配分に使う。</summary>
+    private void PushViewportWidth()
+    {
+        if (ViewModel is not { } viewModel)
+        {
+            return;
+        }
+
+        var padding = DeckScrollViewer.Padding;
+        viewModel.ViewportWidth = Math.Max(0, DeckScrollViewer.ActualWidth - padding.Left - padding.Right);
+    }
+
+    private void ViewMenu_Opening(object sender, object e)
+        => FitColumnsItem.IsChecked = ViewModel?.FitColumnsToWindow ?? false;
+
+    private void FitColumnsItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel)
+        {
+            return;
+        }
+
+        viewModel.FitColumnsToWindow = !viewModel.FitColumnsToWindow;
+        FitColumnsItem.IsChecked = viewModel.FitColumnsToWindow;
+    }
 
     private void ApplyTitleBarTheme()
     {

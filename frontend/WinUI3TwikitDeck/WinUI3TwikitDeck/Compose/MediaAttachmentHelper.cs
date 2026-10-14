@@ -123,7 +123,8 @@ internal static class MediaAttachmentHelper
             {
                 try
                 {
-                    media.Preview = new BitmapImage(new Uri(path)) { DecodePixelWidth = 240 };
+                    // DecodePixelWidth は物理ピクセル。プレビューは 120 DIP なので、表示倍率を掛けた上で 2 倍の余裕を持たせる
+                    media.Preview = new BitmapImage(new Uri(path)) { DecodePixelWidth = Helpers.DisplayScale.ToPhysicalPixels(240) };
                 }
                 catch (Exception ex)
                 {

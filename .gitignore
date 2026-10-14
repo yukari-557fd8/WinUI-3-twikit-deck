@@ -9,6 +9,9 @@ data/cookies.json
 # Per-user column layout (restored on startup)
 data/deck_columns.json
 
+# Per-user window position / size (restored on startup)
+data/deck_window.json
+
 # User-specific files
 *.rsuser
 *.suo

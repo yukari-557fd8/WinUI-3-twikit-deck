@@ -144,6 +144,13 @@ public sealed partial class ColumnControl : UserControl
         await home.SwitchTimelineAsync(type);
     }
 
+    /// <summary>
+    /// タブの BringIntoView 要求をここで止める。デッキの横スクロール ScrollViewer まで伝わると、
+    /// 右端のカラムのタブに合わせてデッキ全体が横にスクロールしてしまう（タブ列自体はスクロール不要）。
+    /// </summary>
+    private void TabView_BringIntoViewRequested(UIElement sender, BringIntoViewRequestedEventArgs args)
+        => args.Handled = true;
+
     private void ColumnMenu_Opening(object sender, object e)
     {
         if (ColumnViewModel is not { } column)

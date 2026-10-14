@@ -23,7 +23,7 @@ public sealed class MediaItemModel
     public bool HasThumbnail => !string.IsNullOrWhiteSpace(ThumbnailUrl);
 
     /// <summary>カラム内表示用（UI スレッドのバインディングから呼ぶこと）。</summary>
-    public ImageSource? ThumbnailImage => ImageCache.GetOrCreate(TwitterImageUrls.ForListMedia(ThumbnailUrl), 640);
+    public ImageSource? ThumbnailImage => ImageCache.GetListMedia(ThumbnailUrl);
 
     /// <summary>拡大表示用の URL。</summary>
     public string PreviewUrl => IsVideo ? Url : TwitterImageUrls.ForPreview(Url) ?? Url;

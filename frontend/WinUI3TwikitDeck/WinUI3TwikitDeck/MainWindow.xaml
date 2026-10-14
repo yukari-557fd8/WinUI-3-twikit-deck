@@ -106,6 +106,17 @@
                 </AppBarButton.Flyout>
             </AppBarButton>
             <AppBarButton Icon="Refresh" Label="すべて更新" Command="{Binding RefreshAllCommand}" ToolTipService.ToolTip="すべてのカラムを更新 (F5)" />
+            <AppBarButton Icon="View" Label="表示" ToolTipService.ToolTip="表示の設定">
+                <AppBarButton.Flyout>
+                    <MenuFlyout Placement="Bottom" Opening="ViewMenu_Opening">
+                        <!-- オンのときは各カラムの幅設定（狭い / 標準 / 広い）を比率として、カラム領域の幅を配分する -->
+                        <ToggleMenuFlyoutItem
+                            x:Name="FitColumnsItem"
+                            Text="カラム幅をウィンドウに合わせる"
+                            Click="FitColumnsItem_Click" />
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
             <AppBarSeparator />
             <AppBarButton Icon="Setting" Label="設定" Click="OnSettingsClick" />
         </CommandBar>
@@ -120,21 +131,25 @@
         <!--
           横スクロール専用。VerticalScrollBarVisibility を Disabled にしないと縦方向が無限の高さで計測され、
           各カラムが中身の高さまで伸びてカラム内の縦スクロールが効かなくなる。
+          幅の変化は MainViewModel.ViewportWidth に渡し、「カラム幅をウィンドウに合わせる」モードの配分に使う。
+          StackLayout の Spacing は MainViewModel.ColumnSpacing と合わせること。
         -->
         <ScrollViewer
+            x:Name="DeckScrollViewer"
             Grid.Row="2"
             HorizontalScrollMode="Enabled"
             HorizontalScrollBarVisibility="Visible"
             VerticalScrollMode="Disabled"
             VerticalScrollBarVisibility="Disabled"
-            Padding="12,8,12,0">
+            Padding="12,8,12,0"
+            SizeChanged="DeckScrollViewer_SizeChanged">
             <ItemsRepeater ItemsSource="{Binding Columns}">
                 <ItemsRepeater.Layout>
                     <StackLayout Orientation="Horizontal" Spacing="12" />
                 </ItemsRepeater.Layout>
                 <ItemsRepeater.ItemTemplate>
                     <DataTemplate x:DataType="viewmodels:ColumnViewModelBase">
-                        <controls:ColumnControl ColumnViewModel="{x:Bind}" Width="{x:Bind Width, Mode=OneWay}" />
+                        <controls:ColumnControl ColumnViewModel="{x:Bind}" Width="{x:Bind DisplayWidth, Mode=OneWay}" />
                     </DataTemplate>
                 </ItemsRepeater.ItemTemplate>
             </ItemsRepeater>

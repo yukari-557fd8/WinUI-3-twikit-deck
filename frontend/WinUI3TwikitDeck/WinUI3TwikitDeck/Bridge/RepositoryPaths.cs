@@ -127,24 +127,29 @@ namespace WinUI3TwikitDeck.Bridge
         /// カラム構成（<c>deck_columns.json</c>）のパス。<see cref="CookiesPath"/> と同じ <c>data/</c> に置く。
         /// 環境変数 <c>DECK_COLUMNS_FILE</c> で上書きできる。
         /// </summary>
-        public static string DeckColumnsPath
+        public static string DeckColumnsPath => ResolveDataFile("DECK_COLUMNS_FILE", "deck_columns.json");
+
+        /// <summary>
+        /// ウィンドウの位置・サイズ（<c>deck_window.json</c>）のパス。<see cref="CookiesPath"/> と同じ <c>data/</c> に置く。
+        /// 環境変数 <c>DECK_WINDOW_FILE</c> で上書きできる。
+        /// </summary>
+        public static string DeckWindowPath => ResolveDataFile("DECK_WINDOW_FILE", "deck_window.json");
+
+        private static string ResolveDataFile(string environmentVariable, string fileName)
         {
-            get
+            var configured = Environment.GetEnvironmentVariable(environmentVariable);
+            if (!string.IsNullOrWhiteSpace(configured))
             {
-                var configured = Environment.GetEnvironmentVariable("DECK_COLUMNS_FILE");
-                if (!string.IsNullOrWhiteSpace(configured))
-                {
-                    return configured;
-                }
-
-                var dataDirectory = Path.GetDirectoryName(CookiesPath);
-                if (string.IsNullOrEmpty(dataDirectory))
-                {
-                    dataDirectory = Path.Combine(ExecutableDirectory, "data");
-                }
-
-                return Path.Combine(dataDirectory, "deck_columns.json");
+                return configured;
             }
+
+            var dataDirectory = Path.GetDirectoryName(CookiesPath);
+            if (string.IsNullOrEmpty(dataDirectory))
+            {
+                dataDirectory = Path.Combine(ExecutableDirectory, "data");
+            }
+
+            return Path.Combine(dataDirectory, fileName);
         }
 
         private static string? FindRepositoryRoot()

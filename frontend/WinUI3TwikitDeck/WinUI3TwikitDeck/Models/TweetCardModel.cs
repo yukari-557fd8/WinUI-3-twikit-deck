@@ -153,6 +153,16 @@ public sealed class TweetCardModel : ObservableObject
 
     public bool HasQuotedTweet => QuotedTweet is not null;
 
+    /// <summary>
+    /// 表示倍率が変わった。倍率に合わせてデコードし直した画像（アバター・引用元）をバインディングに取り直させる。
+    /// 本文のメディアは <see cref="Controls.MediaGrid"/> が自分で差し替える。
+    /// </summary>
+    public void NotifyDisplayScaleChanged()
+    {
+        OnPropertyChanged(nameof(ProfileImage));
+        OnPropertyChanged(nameof(QuotedTweet));
+    }
+
     public IReadOnlyList<MediaItemModel> MediaItems { get; init; } = Array.Empty<MediaItemModel>();
 
     public bool HasMedia => MediaItems.Count > 0;

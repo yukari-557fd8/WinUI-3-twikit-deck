@@ -79,9 +79,12 @@ internal static class MediaPreviewDialog
         }
 
         var hostSize = GetHostSize(host);
+
+        // DecodePixelWidth は物理ピクセルなので表示倍率を掛ける。name=large は長辺 2048px なのでそれ以上はデコードしない
+        var scale = host.XamlRoot?.RasterizationScale ?? Helpers.DisplayScale.Current;
         var bitmap = new BitmapImage
         {
-            DecodePixelWidth = Math.Max(1, (int)(hostSize.Width * 0.9)),
+            DecodePixelWidth = Math.Clamp((int)Math.Ceiling(hostSize.Width * 0.9 * scale), 1, 2048),
             UriSource = uri,
         };
 

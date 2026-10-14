@@ -32,7 +32,8 @@ WinUI 3 で動作する TweetDeck（X Pro）風の複数カラム X（旧 Twitte
 - カラムごとの自動更新（手動 / 1 分 / 2 分 / 5 分）。更新時は新着だけを先頭に差し込み、既存ツイートのカウントやいいね状態を最新化します
 - 末尾までスクロールすると続きを自動取得（「さらに読み込む」ボタンでも可）
 - 幅（狭い / 標準 / 広い）、左右への移動、閉じる
-- 開いているカラムの種類・順序・タブ・更新間隔・幅は `data/deck_columns.json` に保存され、次回起動時に復元されます
+- 「表示」メニューの「カラム幅をウィンドウに合わせる」をオンにすると、カラム領域の幅を各カラムの幅設定（狭い / 標準 / 広い）の比率で配分します（1 カラム 300〜640 DIP。入り切らない分は横スクロール）。ウィンドウの大きさや解像度に合わせてカラムが伸縮します
+- 開いているカラムの種類・順序・タブ・更新間隔・幅と、上記のモードは `data/deck_columns.json` に保存され、次回起動時に復元されます
 - 上部左に `Twikit: Ready ✅ (@ユーザー名)` の接続状態と時計を表示
 
 ### ツイート操作
@@ -60,6 +61,13 @@ WinUI 3 で動作する TweetDeck（X Pro）風の複数カラム X（旧 Twitte
 | `F5` / `Ctrl+R` | すべてのカラムを更新 |
 | `Ctrl+Enter`（投稿ダイアログ内） | 送信 |
 
+### 解像度・DPI スケーリング
+
+- exe は PerMonitorV2 の DPI 対応として起動します（`app.manifest`）。125% / 150% などの拡大率でも文字・画像がぼやけず、拡大率の違うモニター間の移動にも追従します
+- ウィンドウは初回起動時に表示するモニターの作業領域の 90% で中央に出ます。以降は位置・サイズ・最大化状態を `data/deck_window.json` に保存して復元します。サイズは DIP で保存するため拡大率の違うモニターでも見かけの大きさが同じになり、モニター構成が変わって保存位置が画面外になった場合は最も近いモニターの作業領域に収めます
+- アバター・サムネイル・拡大表示の画像は表示倍率に合わせたピクセル数でデコードします（倍率が変わると取り直します）
+- 画像グリッドの高さはカラム幅に合わせて変わり、各ダイアログの中身はウィンドウがそれより狭いときに縮みます
+
 ## アーキテクチャ
 
 ```mermaid
@@ -76,6 +84,7 @@ flowchart LR
     subgraph local [LocalMachine]
         Cookies["data/cookies.json"]
         Layout["data/deck_columns.json"]
+        WindowFile["data/deck_window.json"]
     end
     subgraph external [External]
         X[X_Twitter]
@@ -89,6 +98,7 @@ flowchart LR
     Settings -->|"read/write"| Cookies
     Bridge -->|"load cookies"| Cookies
     VM -->|"save/restore"| Layout
+    MW -->|"save/restore"| WindowFile
 ```
 
 - カラムは `ViewModels/ColumnViewModelBase.cs` を基底とし、種類ごとに `Home` / `Search` / `Notifications` / `List` / `User` の ViewModel があります。初回は全件入れ替え、更新は先頭マージ、末尾到達時は続きを追加、という 3 つの取得経路を共通化しています
@@ -112,6 +122,7 @@ flowchart LR
 | `TweetJobs.cs` / `TweetPoster.cs` / `MediaUpload.cs` | 投稿ジョブ・画像 / 動画 / GIF のアップロードと進捗 |
 | `PageCursorStore.cs` | ページ送り用カーソル |
 | `DeckLayoutStore.cs` | カラム構成（`deck_columns.json`）の保存・復元 |
+| `WindowPlacementStore.cs` | ウィンドウの位置・サイズ（`deck_window.json`）の保存・復元（復元ロジックは `Helpers/WindowPlacementManager.cs`） |
 | `RepositoryPaths.cs` | `cookies.json` などのパス解決 |
 
 ## 必要条件
@@ -240,6 +251,7 @@ MSIX パッケージ プロジェクトは署名を無効（`AppxPackageSigningE
 - 起動時に `data/cookies.json` を読み込み、X にログインできるか確認します
 - 上部左に `Twikit: Ready ✅ (@ユーザー名)` と表示されれば利用できます。失敗時は `❌` 付きの理由が表示されます
 - 保存されたカラム構成（`data/deck_columns.json`）があれば復元し、無ければホームカラムを 1 本開きます
+- 保存されたウィンドウの位置・サイズ（`data/deck_window.json`）があれば復元し、無ければ表示するモニターの作業領域の 90% で中央に出します
 - 設定ダイアログで Cookie を保存するとセッションを作り直してログイン確認をやり直します
 
 ## データファイル
@@ -247,7 +259,8 @@ MSIX パッケージ プロジェクトは署名を無効（`AppxPackageSigningE
 | ファイル | 内容 |
 |---|---|
 | `data/cookies.json` | `auth_token` / `ct0`。環境変数 `COOKIES_FILE` で場所を変更可 |
-| `data/deck_columns.json` | 開いているカラムの種類・順序・タブ・更新間隔・幅。削除すると初期状態に戻る。環境変数 `DECK_COLUMNS_FILE` で場所を変更可 |
+| `data/deck_columns.json` | 開いているカラムの種類・順序・タブ・更新間隔・幅と「カラム幅をウィンドウに合わせる」の状態。削除すると初期状態に戻る。環境変数 `DECK_COLUMNS_FILE` で場所を変更可 |
+| `data/deck_window.json` | ウィンドウの位置（物理ピクセル）・サイズ（DIP）・最大化状態。削除すると次回はモニターに合わせた既定の配置になる。環境変数 `DECK_WINDOW_FILE` で場所を変更可 |
 | `%LOCALAPPDATA%\WinUI3TwikitDeck\errors.log` | XAML のリソース参照失敗・バインド失敗・未処理例外の記録。パッケージ版では `%LOCALAPPDATA%\Packages\<パッケージ名>\LocalCache\Local\WinUI3TwikitDeck\errors.log` にリダイレクトされる |
 
 ## トラブルシューティング
@@ -288,3 +301,6 @@ MSIX パッケージ プロジェクトは署名を無効（`AppxPackageSigningE
 - アンパッケージ（`WindowsPackageType=None`）の自己完結ビルドは、開発環境では起動直後に `0xC0000374` で落ちることを確認しています。実行はパッケージ プロジェクトから行ってください
 - タイムライン・検索・リスト・通知のツイートは `Bridge/TweetSerializer.cs` / `NotificationsService.cs` が同じ JSON 形式に変換し、`Models/TweetCardModel.cs` が読み込みます
 - Bridge のログは `Debug.WriteLine` で出力されます（Visual Studio の出力ウィンドウ、Debug ビルドのみ）
+- `app.manifest`（`<dpiAwareness>PerMonitorV2</dpiAwareness>`）を外すと exe は DPI 非対応になり、拡大率 100% 以外では Windows がウィンドウ全体をビットマップ拡大してぼやけます（.NET SDK が生成する既定のマニフェストには DPI の宣言がありません）。パッケージ版でも exe のマニフェストで決まります
+- `BitmapImage.DecodePixelWidth` は物理ピクセルです。DIP から決めるときは `Helpers/DisplayScale.cs` の `ToPhysicalPixels` を通してください（`MainWindow` が `XamlRoot.RasterizationScale` を反映します）
+- ウィンドウ配置の復元（`Helpers/WindowPlacementManager.cs`）は、位置を移してからサイズを決めます。拡大率の違うモニターへ移すと Windows が `WM_DPICHANGED` でサイズを拡縮するため、位置とサイズを同時に指定すると二重に拡縮されます

@@ -121,6 +121,10 @@
                 </Button>
             </Grid>
 
+            <!--
+              TabView は選択タブを BringIntoView するが、その要求がデッキの横スクロール ScrollViewer まで伝わり、
+              右端のカラムのタブに合わせてデッキ全体が横にスクロールしてしまう。タブ側で止める。
+            -->
             <TabView x:Name="TimelineTabView"
                      TabWidthMode="SizeToContent"
                      SelectedIndex="0"
@@ -128,6 +132,7 @@
                      CanDragTabs="False"
                      CanReorderTabs="False"
                      SelectionChanged="TimelineTabView_SelectionChanged"
+                     BringIntoViewRequested="TabView_BringIntoViewRequested"
                      Margin="0,8,0,4"
                      Grid.Row="1"
                      Visibility="Collapsed">
@@ -145,6 +150,7 @@
                      CanDragTabs="False"
                      CanReorderTabs="False"
                      SelectionChanged="UserTabView_SelectionChanged"
+                     BringIntoViewRequested="TabView_BringIntoViewRequested"
                      Margin="0,8,0,4"
                      Grid.Row="1"
                      Visibility="Collapsed">

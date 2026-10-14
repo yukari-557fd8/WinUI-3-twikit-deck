@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Nodes;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
 using WinUI3TwikitDeck.Helpers;
@@ -9,8 +10,9 @@ namespace WinUI3TwikitDeck.Models;
 /// <summary>
 /// いいね・リポスト・フォローなど、ツイートカードにならない通知 1 件。
 /// 返信・メンション・引用は <see cref="TweetCardModel"/> として表示する。
+/// 変更通知は表示倍率が変わったときにアバターを取り直させるためだけに使う。
 /// </summary>
-public sealed class NotificationCardModel
+public sealed class NotificationCardModel : ObservableObject
 {
     public string Id { get; init; } = string.Empty;
 
@@ -26,6 +28,9 @@ public sealed class NotificationCardModel
     public string ActorProfileImageUrl { get; init; } = string.Empty;
 
     public ImageSource? ActorProfileImage => ImageCache.GetAvatar(ActorProfileImageUrl);
+
+    /// <summary>表示倍率が変わった。倍率に合わせてデコードし直したアバターをバインディングに取り直させる。</summary>
+    public void NotifyDisplayScaleChanged() => OnPropertyChanged(nameof(ActorProfileImage));
 
     public string CreatedAt { get; init; } = string.Empty;
 
