@@ -34,6 +34,7 @@ WinUI 3 で動作する TweetDeck（X Pro）風の複数カラム X（旧 Twitte
 - 幅（狭い / 標準 / 広い）、左右への移動、閉じる
 - 「表示」メニューの「カラム幅をウィンドウに合わせる」をオンにすると、カラム領域の幅を各カラムの幅設定（狭い / 標準 / 広い）の比率で配分します（1 カラム 300〜640 DIP。入り切らない分は横スクロール）。ウィンドウの大きさや解像度に合わせてカラムが伸縮します
 - 開いているカラムの種類・順序・タブ・更新間隔・幅と、上記のモードは `data/deck_columns.json` に保存され、次回起動時に復元されます
+- 「表示」メニューの「カラム構成をエクスポート…」で、今のカラム構成を保存ダイアログから `WinUI3TwikitDeckState.json`（形式は `deck_columns.json` と同じ）として書き出せます。「カラム構成をインポート…」でそのファイルを選ぶと、今のカラムを閉じて書き出した構成に置き換えます（置き換える前に確認が出ます）。別の PC への移行や、構成のバックアップに使えます。カラム構成ではないファイルや、新しすぎる形式のファイルは読み込まずに理由を通知します
 - 上部左に `Twikit: Ready ✅ (@ユーザー名)` の接続状態と時計を表示
 
 ### ツイート操作
@@ -121,7 +122,7 @@ flowchart LR
 | `ActionQueue.cs` | いいね・リポスト・返信のキュー（結果を UI へ返す） |
 | `TweetJobs.cs` / `TweetPoster.cs` / `MediaUpload.cs` | 投稿ジョブ・画像 / 動画 / GIF のアップロードと進捗 |
 | `PageCursorStore.cs` | ページ送り用カーソル |
-| `DeckLayoutStore.cs` | カラム構成（`deck_columns.json`）の保存・復元 |
+| `DeckLayoutStore.cs` | カラム構成（`deck_columns.json`）の保存・復元と、任意のファイルへのエクスポート / インポート |
 | `WindowPlacementStore.cs` | ウィンドウの位置・サイズ（`deck_window.json`）の保存・復元（復元ロジックは `Helpers/WindowPlacementManager.cs`） |
 | `RepositoryPaths.cs` | `cookies.json` などのパス解決 |
 
@@ -169,7 +170,7 @@ WinUI-3-twikit-deck/
 │       │   ├── ViewModels/                # Deck とカラムの ViewModel
 │       │   ├── Models/                    # ツイート・通知・カラム定義
 │       │   ├── Controls/                  # カラム、ツイートカード、投稿・設定ダイアログ
-│       │   ├── Compose/                   # 添付メディアの選択・貼り付け
+│       │   ├── Compose/                   # 添付メディアの選択・貼り付け、ファイルを開く / 保存するコモンダイアログ
 │       │   ├── Helpers/                   # 画像キャッシュ、本文パーサー、ログ
 │       │   └── AfterMicrosoftNetSdk.targets  # パッケージ ビルド時の RID 伝播回避
 │       └── WinUI3TwikitDeck (Package)/    # MSIX パッケージ（スタートアップ プロジェクト）

@@ -144,6 +144,57 @@ public partial class MainViewModel : ObservableObject
         return column;
     }
 
+    /// <summary>今のカラム構成（画面上の状態）。保存とエクスポートで使う。</summary>
+    public DeckLayout CreateLayout() => new()
+    {
+        FitColumnsToWindow = FitColumnsToWindow,
+        Columns = Columns.Select(c => c.ToDefinition()).ToList(),
+    };
+
+    /// <summary>
+    /// 開いているカラムをすべて閉じて、<paramref name="layout"/> のカラムに置き換える（インポート用）。
+    /// 種類が分からないなど開けない定義は読み飛ばす。戻り値は開いたカラムの本数で、
+    /// 1 本も開けないときは今のカラムを閉じずに 0 を返す。
+    /// </summary>
+    public async Task<int> ReplaceLayoutAsync(DeckLayout layout)
+    {
+        var created = layout.Columns
+            .Select(CreateFromDefinition)
+            .OfType<ColumnViewModelBase>()
+            .ToList();
+        if (created.Count == 0)
+        {
+            return 0;
+        }
+
+        _restoring = true;
+        try
+        {
+            foreach (var old in Columns)
+            {
+                old.Detach();
+            }
+
+            Columns.Clear();
+            FitColumnsToWindow = layout.FitColumnsToWindow;
+            foreach (var column in created)
+            {
+                Attach(column);
+                Columns.Add(column);
+            }
+        }
+        finally
+        {
+            _restoring = false;
+        }
+
+        NotifyMoveCommands();
+        UpdateColumnWidths();
+        SaveLayout();
+        await Task.WhenAll(created.Select(c => c.LoadAsync()));
+        return created.Count;
+    }
+
     public Task<ColumnViewModelBase> AddHomeColumnAsync(string? timelineType = null)
         => AddColumnAsync(new HomeColumnViewModel(_timelineService, timelineType));
 
@@ -321,11 +372,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var layout = new DeckLayout
-            {
-                FitColumnsToWindow = FitColumnsToWindow,
-                Columns = Columns.Select(c => c.ToDefinition()).ToList(),
-            };
+            var layout = CreateLayout();
             await Task.Run(() => DeckLayoutStore.Save(layout));
         }
         catch (Exception ex)

@@ -114,6 +114,24 @@
                             x:Name="FitColumnsItem"
                             Text="カラム幅をウィンドウに合わせる"
                             Click="FitColumnsItem_Click" />
+                        <MenuFlyoutSeparator />
+                        <!-- カラムの種類・順序・幅などを deck_columns.json と同じ形式のファイルへ書き出す / 読み込む -->
+                        <MenuFlyoutItem
+                            Text="カラム構成をエクスポート…"
+                            Click="OnExportLayoutClick"
+                            ToolTipService.ToolTip="今のカラム構成を WinUI3TwikitDeckState.json として保存します">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE74E;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem
+                            Text="カラム構成をインポート…"
+                            Click="OnImportLayoutClick"
+                            ToolTipService.ToolTip="エクスポートしたファイルを読み込んで、今のカラムを置き換えます">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8E5;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                     </MenuFlyout>
                 </AppBarButton.Flyout>
             </AppBarButton>

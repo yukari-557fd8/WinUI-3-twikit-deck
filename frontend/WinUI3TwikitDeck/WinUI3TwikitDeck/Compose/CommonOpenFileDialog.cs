@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using static WinUI3TwikitDeck.Compose.FileDialogNative;
 
 namespace WinUI3TwikitDeck.Compose;
 
@@ -138,21 +139,6 @@ internal static class CommonOpenFileDialog
 
     #region COM interop
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct COMDLG_FILTERSPEC
-    {
-        [MarshalAs(UnmanagedType.LPWStr)]
-        public string pszName;
-
-        [MarshalAs(UnmanagedType.LPWStr)]
-        public string pszSpec;
-    }
-
-    private enum SIGDN : uint
-    {
-        SIGDN_FILESYSPATH = 0x80058000,
-    }
-
     [Flags]
     private enum FOS : uint
     {
@@ -166,39 +152,6 @@ internal static class CommonOpenFileDialog
     [Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
     private class FileOpenDialogRCW
     {
-    }
-
-    [ComImport]
-    [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IShellItem
-    {
-        void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv);
-        void GetParent(out IShellItem ppsi);
-        void GetDisplayName(SIGDN sigdnName, out IntPtr ppszName);
-        void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
-        void Compare(IShellItem psi, uint hint, out int piOrder);
-    }
-
-    [ComImport]
-    [Guid("b63ea76d-1f85-456f-a19c-48159efa858b")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IShellItemArray
-    {
-        void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppvOut);
-        void GetPropertyStore(int flags, ref Guid riid, out IntPtr ppv);
-        void GetPropertyDescriptionList(ref PROPERTYKEY keyType, ref Guid riid, out IntPtr ppv);
-        void GetAttributes(int dwAttribFlags, uint sfgaoMask, out uint psfgaoAttribs);
-        void GetCount(out uint pdwNumItems);
-        void GetItemAt(uint dwIndex, out IShellItem ppsi);
-        void EnumItems(out IntPtr ppenumShellItems);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    private struct PROPERTYKEY
-    {
-        public Guid fmtid;
-        public uint pid;
     }
 
     /// <summary>IFileOpenDialog は IFileDialog を継承するため、メソッド順を COM vtable どおりに並べる。</summary>
@@ -240,13 +193,6 @@ internal static class CommonOpenFileDialog
         void GetResults(out IShellItemArray ppenum);
         void GetSelectedItems(out IShellItemArray ppsai);
     }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
-    private static extern int SHCreateItemFromParsingName(
-        [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
-        IntPtr pbc,
-        ref Guid riid,
-        [MarshalAs(UnmanagedType.Interface)] out IShellItem ppv);
 
     #endregion
 }

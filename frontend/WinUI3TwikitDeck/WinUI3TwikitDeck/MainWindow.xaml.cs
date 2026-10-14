@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -8,6 +10,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.UI;
 using WinUI3TwikitDeck.Bridge;
+using WinUI3TwikitDeck.Compose;
 using WinUI3TwikitDeck.Controls;
 using WinUI3TwikitDeck.Helpers;
 using WinUI3TwikitDeck.Services;
@@ -199,6 +202,120 @@ public sealed partial class MainWindow : Window
     }
 
     // ---- コマンドバー ----
+
+    // ---- カラム構成のエクスポート / インポート ----
+
+    private static IReadOnlyList<(string Name, string Spec)> LayoutFileFilters { get; } =
+    [
+        ("カラム構成 (*.json)", "*.json"),
+    ];
+
+    private IntPtr WindowHandle => WinRT.Interop.WindowNative.GetWindowHandle(this);
+
+    private void OnExportLayoutClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var path = CommonSaveFileDialog.Show(
+                WindowHandle,
+                LayoutFileFilters,
+                defaultFileName: DeckLayoutStore.ExportFileName,
+                defaultExtension: "json",
+                title: "カラム構成をエクスポート",
+                initialDirectory: Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+            if (path is null)
+            {
+                return;
+            }
+
+            DeckLayoutStore.Export(path, viewModel.CreateLayout());
+            AppNotifications.Success($"カラム構成をエクスポートしました: {path}");
+        }
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
+        {
+            AppNotifications.Error($"カラム構成をエクスポートできません: {ex.Message}");
+        }
+    }
+
+    private async void OnImportLayoutClick(object sender, RoutedEventArgs e)
+    {
+        if (Root is null || ViewModel is not { } viewModel || DialogHelper.IsDialogOpen)
+        {
+            return;
+        }
+
+        string? path;
+        try
+        {
+            path = CommonOpenFileDialog.Show(
+                    WindowHandle,
+                    [.. LayoutFileFilters, ("すべてのファイル", "*.*")],
+                    multiSelect: false,
+                    title: "カラム構成をインポート",
+                    initialDirectory: Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments))
+                .FirstOrDefault();
+        }
+        catch (COMException ex)
+        {
+            AppNotifications.Error($"ファイルを選べません: {ex.Message}");
+            return;
+        }
+
+        if (path is null)
+        {
+            return;
+        }
+
+        var layout = DeckLayoutStore.Import(path, out var error);
+        if (layout is null)
+        {
+            AppNotifications.Error($"カラム構成をインポートできません: {error}");
+            return;
+        }
+
+        // 今のカラムは閉じて置き換わる。戻せないので確認する
+        var confirm = new ContentDialog
+        {
+            XamlRoot = Root,
+            RequestedTheme = (Content as FrameworkElement)?.ActualTheme ?? ElementTheme.Default,
+            Title = "カラム構成をインポート",
+            Content = new TextBlock
+            {
+                Text = $"今開いている {viewModel.Columns.Count} 本のカラムを閉じて、{Path.GetFileName(path)} のカラム構成に置き換えます。",
+                TextWrapping = TextWrapping.Wrap,
+            },
+            PrimaryButtonText = "置き換える",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await DialogHelper.ShowAsync(confirm) != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var opened = await viewModel.ReplaceLayoutAsync(layout);
+        if (opened == 0)
+        {
+            AppNotifications.Error("カラム構成をインポートできません: 開けるカラムがありません。今のカラムはそのままです。");
+            return;
+        }
+
+        DeckScrollViewer.ChangeView(0, null, null, disableAnimation: true);
+        var skipped = layout.Columns.Count - opened;
+        if (skipped > 0)
+        {
+            AppNotifications.Show($"カラム構成をインポートしました（{opened} 本）。対応していない {skipped} 本は読み飛ばしました。", AppNotificationSeverity.Warning);
+        }
+        else
+        {
+            AppNotifications.Success($"カラム構成をインポートしました（{opened} 本）。");
+        }
+    }
 
     private async void OnSettingsClick(object sender, RoutedEventArgs e)
     {
