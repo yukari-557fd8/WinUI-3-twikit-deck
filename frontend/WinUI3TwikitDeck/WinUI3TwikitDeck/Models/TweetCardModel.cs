@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
@@ -222,6 +223,24 @@ public sealed class TweetCardModel : ObservableObject
         return name.StartsWith('@') ? name : "@" + name;
     }
 
+    /// <summary>「返信先」に並べる人数。超えた分は「他 N 人」にまとめる。</summary>
+    private const int MaxReplyToNames = 3;
+
+    /// <summary>
+    /// 空白区切りの返信先（直接の返信先と、本文の先頭から外した「@名前」）を「@a @b @c 他N人」の形にする。
+    /// </summary>
+    private static string ReplyToDisplayOf(string? screenNames)
+    {
+        var names = (screenNames ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (names.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var display = string.Join(" ", names.Take(MaxReplyToNames).Select(WithAt));
+        return names.Length > MaxReplyToNames ? $"{display} 他{names.Length - MaxReplyToNames}人" : display;
+    }
+
     private static int IntOf(JsonNode? node)
     {
         if (node is null)
@@ -311,7 +330,7 @@ public sealed class TweetCardModel : ObservableObject
             IsUserVerified = json["user_verified"]?.GetValue<bool>() ?? false,
             IsUserProtected = json["user_protected"]?.GetValue<bool>() ?? false,
             CreatedAt = json["created_at"]?.GetValue<string>() ?? string.Empty,
-            ReplyToDisplay = WithAt(json["reply_to_screen_name"]?.GetValue<string>()),
+            ReplyToDisplay = ReplyToDisplayOf(json["reply_to_screen_name"]?.GetValue<string>()),
             IsRetweet = json["is_retweet"]?.GetValue<bool>() ?? false,
             RetweetedByName = json["retweeted_by_name"]?.GetValue<string>() ?? string.Empty,
             ReplyCount = IntOf(json["reply_count"]),
