@@ -42,6 +42,11 @@ public sealed class NotificationCardModel : ObservableObject
 
     public bool HasTargetTweet => !string.IsNullOrWhiteSpace(TargetTweetText);
 
+    /// <summary>いいね・リポストされたツイートの ID。カードのクリックでその会話を開く（フォロー通知などは空）。</summary>
+    public string TargetTweetId { get; init; } = string.Empty;
+
+    public bool HasTargetTweetId => !string.IsNullOrEmpty(TargetTweetId);
+
     public ulong SortKey
     {
         get
@@ -128,6 +133,7 @@ public sealed class NotificationCardModel : ObservableObject
             ActorProfileImageUrl = json["actor_profile_image"]?.GetValue<string>() ?? string.Empty,
             CreatedAt = json["created_at"]?.GetValue<string>() ?? string.Empty,
             TargetTweetText = json["target_tweet_text"]?.GetValue<string>() ?? string.Empty,
+            TargetTweetId = json["target_tweet_id"]?.GetValue<string>() ?? string.Empty,
         };
     }
 }

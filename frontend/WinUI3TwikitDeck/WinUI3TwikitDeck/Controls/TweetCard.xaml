@@ -12,13 +12,50 @@
         <controls:RetweetColorConverter x:Key="RetweetColorConverter" />
     </UserControl.Resources>
 
+    <!-- クリックでカラム内に会話を開く（ボタン・リンク・メディア・引用はそれぞれの動作を優先） -->
     <Border
+        x:Name="CardBorder"
         Margin="0,4"
         Padding="12"
         CornerRadius="12"
         Background="{ThemeResource TweetCardBackgroundBrush}"
         BorderBrush="{ThemeResource TweetCardBorderBrush}"
-        BorderThickness="1">
+        BorderThickness="1"
+        PointerEntered="CardBorder_PointerEntered"
+        PointerExited="CardBorder_PointerExited"
+        PointerCanceled="CardBorder_PointerExited"
+        PointerCaptureLost="CardBorder_PointerExited">
+        <!--
+          状態はルート（UserControl の中身の最上位）に置かないと GoToState が見つけられない。
+          引用部分は x:Load なので、QuotePointerOver には読み込み済みの QuoteBorder の PointerEntered からだけ入る。
+        -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="CardPointerStates">
+                <VisualState x:Name="CardNormal" />
+                <VisualState x:Name="CardPointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="CardBorder.Background" Value="{ThemeResource TweetCardHoverBackgroundBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="FocalStates">
+                <VisualState x:Name="NotFocal" />
+                <VisualState x:Name="Focal">
+                    <VisualState.Setters>
+                        <Setter Target="CardBorder.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="QuotePointerStates">
+                <VisualState x:Name="QuoteNormal" />
+                <VisualState x:Name="QuotePointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="QuoteBorder.Background" Value="{ThemeResource QuotedTweetCardHoverBackgroundBrush}" />
+                        <Setter Target="QuoteBorder.BorderBrush" Value="{ThemeResource QuotedTweetCardHoverBorderBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <StackPanel Spacing="10">
             <StackPanel
                 Orientation="Horizontal"
@@ -52,7 +89,7 @@
                 CreatedAtAbsoluteDisplay="{x:Bind Tweet.CreatedAtAbsoluteDisplay}"
                 CreatedAtRelativeDisplay="{x:Bind Tweet.CreatedAtRelativeDisplay}"
                 ReplyToDisplay="{x:Bind Tweet.ReplyToDisplay}"
-                HasReplyTo="{x:Bind Tweet.HasReplyTo}" />
+                HasReplyTo="{x:Bind ReplyToVisible(Tweet.HasReplyTo, ShowReplyTo)}" />
 
             <controls:TweetTextBlock
                 Text="{x:Bind Tweet.Text}"
@@ -75,17 +112,6 @@
                 PointerExited="QuoteBorder_PointerExited"
                 Tapped="QuoteBorder_Tapped"
                 ToolTipService.ToolTip="引用元をブラウザで開く">
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroup x:Name="PointerStates">
-                        <VisualState x:Name="Normal" />
-                        <VisualState x:Name="PointerOver">
-                            <VisualState.Setters>
-                                <Setter Target="QuoteBorder.Background" Value="{ThemeResource QuotedTweetCardHoverBackgroundBrush}" />
-                                <Setter Target="QuoteBorder.BorderBrush" Value="{ThemeResource QuotedTweetCardHoverBorderBrush}" />
-                            </VisualState.Setters>
-                        </VisualState>
-                    </VisualStateGroup>
-                </VisualStateManager.VisualStateGroups>
                 <StackPanel Spacing="10">
                     <controls:TweetUserRow
                         Visibility="{x:Bind Tweet.QuotedTweet.IsUnavailable, Converter={StaticResource InverseBoolToVisibilityConverter}}"

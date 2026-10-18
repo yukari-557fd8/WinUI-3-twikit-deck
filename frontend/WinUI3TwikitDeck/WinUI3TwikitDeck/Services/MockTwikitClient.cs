@@ -117,6 +117,7 @@ public sealed class MockTwikitClient : ITwikitClient
                 ActorName = "いいねした人",
                 ActorScreenName = "@liker",
                 CreatedAt = Now(10),
+                TargetTweetId = NextId(),
                 TargetTweetText = "いいねされた元のツイート本文です。",
             });
             list.Add(new NotificationCardModel
@@ -223,6 +224,49 @@ public sealed class MockTwikitClient : ITwikitClient
             Card(bare, name, 30, $"{name} のユーザータイムラインのツイートです。", 2, 0, 7, 120),
             Card("リポスト元", "@reposted_user", 90, $"{name} がリポストした投稿です。", 3, 15, 40, 2100, retweetedBy: bare, retweeted: true),
         ], page);
+    }
+
+    /// <summary>
+    /// 返信元の流れ（ふつうのツイート / 削除済み / X が途中を返さなかったもの）、開いたツイート、返信のまとまり 2 つ。
+    /// 続きのページは返信だけ。
+    /// </summary>
+    public async Task<ConversationPage> GetConversationAsync(string tweetId, string? cursor = null, CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(300, cancellationToken);
+        var page = PageOf(cursor);
+        var nextCursor = page + 1 < MaxPages ? $"page:{page + 1}" : null;
+        if (page > 0)
+        {
+            var older = new List<IReadOnlyList<TweetCardModel>>();
+            for (var i = 0; i < 3; i++)
+            {
+                older.Add([Card($"返信 {page}-{i + 1}", $"@reply_{page}_{i + 1}", 30 + i, $"{page + 1} ページ目の返信 ({i + 1}/3) です。", 0, 0, i, 10, replyTo: "@focal")]);
+            }
+
+            return new ConversationPage([], null, older, nextCursor);
+        }
+
+        var root = Card("会話の始まり", "@thread_root", 180, "会話の最初のツイートです。", 4, 1, 12, 900);
+        var middle = Card("途中の人", "@middle", 120, "X が返信先を返さなかったツイートです（上に「取得できなかったツイート」が入ります）。", 1, 0, 3, 200, replyTo: "@deleted");
+        var focal = Card("開いたツイート", "@focal", 90, "クリックして開いたツイートです。https://example.com/conversation", 2, 1, 8, 640, replyTo: "@middle", id: tweetId);
+        return new ConversationPage(
+            [
+                new ConversationLink(root.Id, root, null, null),
+                new ConversationLink(NextId(), null, null, "このポストは削除されました。"),
+                new ConversationLink(middle.Id, middle, NextId(), null),
+            ],
+            new ConversationLink(focal.Id, focal, null, null),
+            [
+                [
+                    Card("返信した人", "@replier", 60, "開いたツイートへの返信です。", 1, 0, 2, 50, replyTo: "@focal"),
+                    Card("開いたツイート", "@focal", 45, "返信への返信です（線でつながります）。", 0, 0, 1, 30, replyTo: "@replier"),
+                ],
+                [
+                    Card("別の人", "@another", 30, "別の返信です。", 0, 0, 0, 12, replyTo: "@focal",
+                        media: [Image("https://picsum.photos/seed/conversation/600/400")]),
+                ],
+            ],
+            nextCursor);
     }
 
     /// <summary>続きページ用の古いツイート。</summary>
@@ -332,9 +376,10 @@ public sealed class MockTwikitClient : ITwikitClient
         string retweetedBy = "",
         string replyTo = "",
         TweetQuoteModel? quote = null,
-        IReadOnlyList<MediaItemModel>? media = null)
+        IReadOnlyList<MediaItemModel>? media = null,
+        string? id = null)
     {
-        var id = NextId();
+        id ??= NextId();
         return new TweetCardModel
         {
             Id = id,

@@ -13,7 +13,7 @@ public sealed class ListColumnViewModel : ColumnViewModelBase
     private readonly ITimelineService _timelineService;
 
     public ListColumnViewModel(string listId, string listName, ITimelineService timelineService)
-        : base(new ListColumn(listId, listName))
+        : base(new ListColumn(listId, listName), timelineService)
     {
         ListId = listId;
         ListName = listName;

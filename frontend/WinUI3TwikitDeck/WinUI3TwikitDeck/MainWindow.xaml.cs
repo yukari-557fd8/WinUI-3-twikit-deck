@@ -425,16 +425,17 @@ public sealed partial class MainWindow : Window
         }
 
         AppNotifications.Success(result.Message);
-        if (context.Mode == ComposeMode.Reply)
-        {
-            context.Target?.NoteReplyPosted();
-        }
+        var replyTarget = context.Mode == ComposeMode.Reply ? context.Target : null;
+        replyTarget?.NoteReplyPosted();
 
-        _ = RefreshOwnTimelinesSoonAsync();
+        _ = RefreshOwnTimelinesSoonAsync(replyTarget?.Id);
     }
 
-    /// <summary>投稿が反映されるのを少し待ってからホームカラムを更新する。</summary>
-    private async Task RefreshOwnTimelinesSoonAsync()
+    /// <summary>
+    /// 投稿が反映されるのを少し待ってからホームカラムを更新する。
+    /// 返信なら、返信先のツイートを表示中のカラム内の会話も取り直す（自分の返信が返信欄に出る）。
+    /// </summary>
+    private async Task RefreshOwnTimelinesSoonAsync(string? replyToTweetId)
     {
         try
         {
@@ -447,7 +448,14 @@ public sealed partial class MainWindow : Window
             var targets = viewModel.Columns
                 .Where(c => c is HomeColumnViewModel { TimelineType: Models.HomeTimelineType.Latest })
                 .ToList();
-            await Task.WhenAll(targets.Select(c => c.RefreshAsync()));
+            List<ConversationViewModel> conversations = string.IsNullOrEmpty(replyToTweetId)
+                ? []
+                : viewModel.Columns
+                    .Select(c => c.Conversation)
+                    .OfType<ConversationViewModel>()
+                    .Where(c => c.Contains(replyToTweetId))
+                    .ToList();
+            await Task.WhenAll(targets.Select(c => c.RefreshAsync()).Concat(conversations.Select(c => c.ReloadAsync())));
         }
         catch (Exception ex)
         {

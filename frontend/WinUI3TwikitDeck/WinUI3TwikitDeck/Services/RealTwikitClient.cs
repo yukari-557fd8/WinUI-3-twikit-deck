@@ -134,4 +134,64 @@ public sealed class RealTwikitClient : ITwikitClient
         var response = await TwikitSession.RunAsync(() => TimelineService.GetUserTweetsAsync(screenName, tweetType, count: 30, cursor: Cursor(cursor)), cancellationToken).ConfigureAwait(false);
         return PageOf(response);
     }
+
+    /// <summary>会話は X のカーソルをそのまま続きに使う（<see cref="PageCursorStore{T}"/> は通さない）。</summary>
+    public async Task<ConversationPage> GetConversationAsync(string tweetId, string? cursor = null, CancellationToken cancellationToken = default)
+    {
+        var response = await TwikitSession.RunAsync(() => ConversationService.GetConversationAsync(tweetId, Cursor(cursor)), cancellationToken).ConfigureAwait(false);
+        if (response["error"]?.GetValue<string>() is { Length: > 0 } error)
+        {
+            throw new BridgeException(error);
+        }
+
+        var ancestors = new List<ConversationLink>();
+        if (response["ancestors"] is JsonArray ancestorsArray)
+        {
+            foreach (var node in ancestorsArray)
+            {
+                if (node is JsonObject obj)
+                {
+                    ancestors.Add(LinkOf(obj));
+                }
+            }
+        }
+
+        var replies = new List<IReadOnlyList<TweetCardModel>>();
+        if (response["replies"] is JsonArray threads)
+        {
+            foreach (var thread in threads)
+            {
+                var tweets = new List<TweetCardModel>();
+                if (thread?["tweets"] is JsonArray tweetsArray)
+                {
+                    foreach (var node in tweetsArray)
+                    {
+                        if (node is JsonObject obj)
+                        {
+                            tweets.Add(TweetCardModel.FromJsonObject(obj));
+                        }
+                    }
+                }
+
+                if (tweets.Count > 0)
+                {
+                    replies.Add(tweets);
+                }
+            }
+        }
+
+        var focal = response["tweet"] is JsonObject focalObj ? LinkOf(focalObj) : null;
+        return new ConversationPage(ancestors, focal, replies, Cursor(response["next_cursor"]?.GetValue<string>()));
+    }
+
+    private static ConversationLink LinkOf(JsonObject obj)
+    {
+        var id = obj["id"]?.GetValue<string>() ?? string.Empty;
+        if (obj["is_unavailable"]?.GetValue<bool>() == true)
+        {
+            return new ConversationLink(id, null, null, obj["unavailable_text"]?.GetValue<string>());
+        }
+
+        return new ConversationLink(id, TweetCardModel.FromJsonObject(obj), obj["missing_parent_id"]?.GetValue<string>(), null);
+    }
 }

@@ -13,7 +13,7 @@ public sealed class NotificationsColumnViewModel : ColumnViewModelBase
     private readonly ITimelineService _timelineService;
 
     public NotificationsColumnViewModel(string notificationType, ITimelineService timelineService)
-        : base(new NotificationsColumn(Models.NotificationType.Normalize(notificationType)))
+        : base(new NotificationsColumn(Models.NotificationType.Normalize(notificationType)), timelineService)
     {
         NotificationType = Models.NotificationType.Normalize(notificationType);
         _timelineService = timelineService;

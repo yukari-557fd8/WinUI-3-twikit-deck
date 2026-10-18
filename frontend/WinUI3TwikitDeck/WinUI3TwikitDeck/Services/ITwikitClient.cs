@@ -26,4 +26,7 @@ public interface ITwikitClient
 
     /// <param name="tweetType">Tweets（ツイート＋リポスト）/ Replies（ツイート＋返信）/ Media。</param>
     Task<TimelinePage> GetUserTweetsAsync(string screenName, string tweetType, string? cursor = null, CancellationToken cancellationToken = default);
+
+    /// <summary>ツイートの会話。<paramref name="cursor"/> が null なら返信元・ツイート本体・返信の 1 ページ目、続きは返信だけ。</summary>
+    Task<ConversationPage> GetConversationAsync(string tweetId, string? cursor = null, CancellationToken cancellationToken = default);
 }

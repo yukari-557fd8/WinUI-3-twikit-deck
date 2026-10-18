@@ -24,4 +24,7 @@ public sealed class TwikitTimelineService(ITwikitClient client) : ITimelineServi
 
     public Task<TimelinePage> LoadUserTweetsAsync(string screenName, string tweetType, string? cursor = null, CancellationToken cancellationToken = default)
         => client.GetUserTweetsAsync(screenName, tweetType, cursor, cancellationToken);
+
+    public Task<ConversationPage> LoadConversationAsync(string tweetId, string? cursor = null, CancellationToken cancellationToken = default)
+        => client.GetConversationAsync(tweetId, cursor, cancellationToken);
 }

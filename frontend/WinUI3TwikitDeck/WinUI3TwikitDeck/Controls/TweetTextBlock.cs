@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
+using Windows.Foundation;
 using Windows.System;
 using WinUI3TwikitDeck.Helpers;
 using WinUI3TwikitDeck.Models;
@@ -67,6 +69,50 @@ public sealed class TweetTextBlock : UserControl
         get => (double)GetValue(TextFontSizeProperty);
         set => SetValue(TextFontSizeProperty, value);
     }
+
+    /// <summary>
+    /// <paramref name="point"/>（この要素の座標）がリンクの上か（WinUI-3-twikit より移植）。
+    /// カードのクリックで会話を開くとき、リンクのクリックと区別するために使う。
+    /// </summary>
+    public bool IsLinkAt(Point point)
+    {
+        foreach (var link in _textBlock.Inlines.OfType<Hyperlink>())
+        {
+            // 文字ごとの位置を行ごとにまとめ、行ごとの範囲で判定する（リンクが折り返していてもよい）。
+            // リンク末尾の位置（直後の文字の左端）まで含めると、最後の文字の右端までが範囲になる。
+            var end = link.ContentEnd.Offset;
+            Rect? line = null;
+            for (var position = link.ContentStart;
+                 position is not null && position.Offset <= end;
+                 position = position.GetPositionAtOffset(1, LogicalDirection.Forward))
+            {
+                var rect = position.GetCharacterRect(LogicalDirection.Forward);
+                if (line is { } current && Math.Abs(current.Y - rect.Y) < 1)
+                {
+                    current.Union(rect);
+                    line = current;
+                    continue;
+                }
+
+                if (line is { } finished && LineContains(finished, point))
+                {
+                    return true;
+                }
+
+                line = rect;
+            }
+
+            if (line is { } last && LineContains(last, point))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool LineContains(Rect line, Point point)
+        => point.X >= line.Left && point.X <= line.Right && point.Y >= line.Top && point.Y <= line.Bottom;
 
     private void Rebuild()
     {

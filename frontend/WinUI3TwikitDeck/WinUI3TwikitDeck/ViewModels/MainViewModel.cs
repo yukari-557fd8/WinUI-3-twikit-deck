@@ -352,6 +352,11 @@ public partial class MainViewModel : ObservableObject
                         break;
                 }
             }
+
+            foreach (var tweet in column.Conversation?.Tweets ?? Enumerable.Empty<TweetCardModel>())
+            {
+                tweet.NotifyDisplayScaleChanged();
+            }
         }
     }
 

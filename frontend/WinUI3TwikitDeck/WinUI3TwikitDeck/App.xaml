@@ -48,6 +48,8 @@
                     <SolidColorBrush x:Key="QuotedTweetCardBorderBrush" Color="#2A2A2A"/>
                     <SolidColorBrush x:Key="QuotedTweetCardHoverBackgroundBrush" Color="#252525"/>
                     <SolidColorBrush x:Key="QuotedTweetCardHoverBorderBrush" Color="#3A3A3A"/>
+                    <SolidColorBrush x:Key="TweetCardHoverBackgroundBrush" Color="#242424"/>
+                    <SolidColorBrush x:Key="ConversationLineBrush" Color="#454545"/>
                     <SolidColorBrush x:Key="CommandBarBackground" Color="#202020"/>
                     <SolidColorBrush x:Key="CommandBarBackgroundOpen" Color="#1F1F1F"/>
                     <SolidColorBrush x:Key="CommandBarBorderBrushOpen" Color="#2A2A2A"/>
@@ -88,6 +90,8 @@
                     <SolidColorBrush x:Key="QuotedTweetCardBorderBrush" Color="#E0E0E0"/>
                     <SolidColorBrush x:Key="QuotedTweetCardHoverBackgroundBrush" Color="#EDEDED"/>
                     <SolidColorBrush x:Key="QuotedTweetCardHoverBorderBrush" Color="#C8C8C8"/>
+                    <SolidColorBrush x:Key="TweetCardHoverBackgroundBrush" Color="#F7F7F7"/>
+                    <SolidColorBrush x:Key="ConversationLineBrush" Color="#C8C8C8"/>
                     <SolidColorBrush x:Key="CommandBarBackground" Color="#F3F3F3"/>
                     <SolidColorBrush x:Key="CommandBarBackgroundOpen" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="CommandBarBorderBrushOpen" Color="#E0E0E0"/>
@@ -128,6 +132,8 @@
                     <SolidColorBrush x:Key="QuotedTweetCardBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
                     <SolidColorBrush x:Key="QuotedTweetCardHoverBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="QuotedTweetCardHoverBorderBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="TweetCardHoverBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="ConversationLineBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
                     <SolidColorBrush x:Key="CommandBarBackground" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="CommandBarBackgroundOpen" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="CommandBarBorderBrushOpen" Color="{ThemeResource SystemColorWindowTextColor}"/>

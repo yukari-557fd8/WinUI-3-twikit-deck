@@ -21,7 +21,7 @@ public sealed class UserColumnViewModel : ColumnViewModelBase
     private readonly ITimelineService _timelineService;
 
     public UserColumnViewModel(string screenName, ITimelineService timelineService, string? tab = null, string? mediaKind = null)
-        : base(new UserColumn(screenName))
+        : base(new UserColumn(screenName), timelineService)
     {
         ScreenName = screenName.Trim().TrimStart('@');
         _timelineService = timelineService;

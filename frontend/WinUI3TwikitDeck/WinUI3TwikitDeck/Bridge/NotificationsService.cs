@@ -461,6 +461,7 @@ namespace WinUI3TwikitDeck.Bridge
                     ["text"] = TweetSerializer.NormalizeText(notification.Sub("message").Str("text") ?? string.Empty),
                     ["created_at"] = FormatTimestampMs(timestampMs),
                     ["target_tweet_text"] = StripMediaUrls(TweetSerializer.NormalizeText(TweetText(target)), target),
+                    ["target_tweet_id"] = targetId,
                 };
                 AddActor(item, users, userId);
                 extracted.Add((timestampMs, item));

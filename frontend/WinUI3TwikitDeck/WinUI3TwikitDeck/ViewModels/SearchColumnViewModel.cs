@@ -12,7 +12,7 @@ public sealed class SearchColumnViewModel : ColumnViewModelBase
     private readonly ITimelineService _timelineService;
 
     public SearchColumnViewModel(string query, ITimelineService timelineService)
-        : base(new SearchColumn(query))
+        : base(new SearchColumn(query), timelineService)
     {
         Query = query;
         _timelineService = timelineService;

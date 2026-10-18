@@ -8,13 +8,30 @@
         <controls:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </UserControl.Resources>
 
+    <!-- いいね・リポストの通知はクリックで対象ツイートの会話をカラム内に開く（フォローなど対象の無い通知は何もしない） -->
     <Border
+        x:Name="CardBorder"
         Margin="0,4"
         Padding="12"
         CornerRadius="12"
         Background="{ThemeResource TweetCardBackgroundBrush}"
         BorderBrush="{ThemeResource TweetCardBorderBrush}"
-        BorderThickness="1">
+        BorderThickness="1"
+        Tapped="CardBorder_Tapped"
+        PointerEntered="CardBorder_PointerEntered"
+        PointerExited="CardBorder_PointerExited"
+        PointerCanceled="CardBorder_PointerExited"
+        PointerCaptureLost="CardBorder_PointerExited">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="CardPointerStates">
+                <VisualState x:Name="CardNormal" />
+                <VisualState x:Name="CardPointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="CardBorder.Background" Value="{ThemeResource TweetCardHoverBackgroundBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <Grid ColumnSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />

@@ -13,7 +13,7 @@ public sealed class HomeColumnViewModel : ColumnViewModelBase
     private readonly ITimelineService _timelineService;
 
     public HomeColumnViewModel(ITimelineService timelineService, string? timelineType = null)
-        : base(new HomeColumn())
+        : base(new HomeColumn(), timelineService)
     {
         _timelineService = timelineService;
         TimelineType = HomeTimelineType.Normalize(timelineType);

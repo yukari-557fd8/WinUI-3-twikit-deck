@@ -20,4 +20,7 @@ public interface ITimelineService
 
     /// <param name="tweetType">Tweets（ツイート＋リポスト）/ Replies（ツイート＋返信）/ Media。</param>
     Task<TimelinePage> LoadUserTweetsAsync(string screenName, string tweetType, string? cursor = null, CancellationToken cancellationToken = default);
+
+    /// <summary>ツイートの会話（カラム内の会話表示用）。<paramref name="cursor"/> が null なら 1 ページ目。</summary>
+    Task<ConversationPage> LoadConversationAsync(string tweetId, string? cursor = null, CancellationToken cancellationToken = default);
 }

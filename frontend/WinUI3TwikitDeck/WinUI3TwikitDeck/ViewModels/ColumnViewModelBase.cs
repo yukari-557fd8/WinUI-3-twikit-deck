@@ -27,6 +27,9 @@ public abstract partial class ColumnViewModelBase : ObservableObject
 
     public static readonly IReadOnlyList<int> RefreshIntervalChoices = [0, 60, 120, 300];
 
+    /// <summary>会話の中から会話を開いて積める戻り先の上限。超えたら古いものから捨てる。</summary>
+    private const int MaxConversationHistory = 20;
+
     public static readonly IReadOnlyList<double> WidthChoices = [300, DefaultWidth, 480];
 
     /// <summary>ウィンドウ幅に合わせるモードでの 1 カラムの下限・上限（DIP）。下限はカード内の操作行が収まる幅。</summary>
@@ -35,6 +38,10 @@ public abstract partial class ColumnViewModelBase : ObservableObject
     public const double MaxFitWidth = 640;
 
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
+    private readonly ITimelineService _timelineService;
+
+    /// <summary>会話の中から開いた会話の戻り先（古い順）。表示中の <see cref="Conversation"/> は含まない。</summary>
+    private readonly List<ConversationViewModel> _conversationHistory = [];
     private DispatcherQueueTimer? _timer;
     private int _loadVersion;
 
@@ -76,10 +83,23 @@ public abstract partial class ColumnViewModelBase : ObservableObject
     [ObservableProperty]
     private string _lastUpdatedDisplay = string.Empty;
 
-    protected ColumnViewModelBase(ColumnBase column)
+    /// <summary>
+    /// カラム内に開いている会話。null ならタイムラインを表示する。
+    /// 会話を開いている間もタイムラインは裏で自動更新を続ける（表示位置もそのまま残る）。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConversationOpen))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private ConversationViewModel? _conversation;
+
+    protected ColumnViewModelBase(ColumnBase column, ITimelineService timelineService)
     {
         Column = column;
-        RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => !IsLoading);
+        _timelineService = timelineService;
+        // 会話を開いている間の更新ボタンは会話を取り直す（裏のタイムラインの読み込み中でも押せる）
+        RefreshCommand = new AsyncRelayCommand(
+            () => Conversation is { } conversation ? conversation.ReloadAsync() : RefreshAsync(),
+            () => IsConversationOpen || !IsLoading);
         LoadMoreCommand = new AsyncRelayCommand(() => LoadMoreAsync(), () => HasMore && !IsLoadingMore && !IsLoading);
         Tweets.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsEmpty));
     }
@@ -99,6 +119,8 @@ public abstract partial class ColumnViewModelBase : ObservableObject
     public bool IsEmpty => Tweets.Count == 0 && !IsLoading;
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    public bool IsConversationOpen => Conversation is not null;
 
     public string RefreshIntervalLabel => FormatInterval(RefreshIntervalSeconds);
 
@@ -407,6 +429,98 @@ public abstract partial class ColumnViewModelBase : ObservableObject
     /// </summary>
     protected abstract Task<TimelinePage> LoadPageAsync(string? cursor, bool isRefresh, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// ツイートの会話をカラム内に開く。会話の中から開いたときは今の会話を戻り先に積む。
+    /// 表示中の会話と同じツイートなら何もしない。
+    /// </summary>
+    public void OpenConversation(string tweetId)
+    {
+        if (string.IsNullOrEmpty(tweetId) || string.Equals(Conversation?.TweetId, tweetId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (Conversation is { } current)
+        {
+            _conversationHistory.Add(current);
+            if (_conversationHistory.Count > MaxConversationHistory)
+            {
+                _conversationHistory[0].Cancel();
+                _conversationHistory.RemoveAt(0);
+            }
+        }
+
+        var conversation = new ConversationViewModel(tweetId, _timelineService);
+        Conversation = conversation;
+        _ = conversation.LoadAsync();
+    }
+
+    /// <summary>ひとつ前の会話へ戻る。戻り先が無ければタイムラインに戻る。</summary>
+    public void GoBack()
+    {
+        if (Conversation is not { } current)
+        {
+            return;
+        }
+
+        current.Cancel();
+        ConversationViewModel? previous = null;
+        if (_conversationHistory.Count > 0)
+        {
+            previous = _conversationHistory[^1];
+            _conversationHistory.RemoveAt(_conversationHistory.Count - 1);
+        }
+
+        // 会話の中で付けたいいね・リツイートを、戻り先にある同じツイートにも反映する
+        ApplyStatesFrom(current, previous?.Tweets ?? TimelineTweets());
+        Conversation = previous;
+    }
+
+    /// <summary>開いている会話をすべて閉じてタイムラインに戻る。</summary>
+    public void CloseConversation()
+    {
+        foreach (var conversation in _conversationHistory)
+        {
+            conversation.Cancel();
+        }
+
+        _conversationHistory.Clear();
+        if (Conversation is { } current)
+        {
+            current.Cancel();
+            ApplyStatesFrom(current, TimelineTweets());
+            Conversation = null;
+        }
+    }
+
+    private IEnumerable<TweetCardModel> TimelineTweets()
+    {
+        foreach (var item in Tweets)
+        {
+            if (item is TweetCardModel tweet)
+            {
+                yield return tweet;
+            }
+        }
+    }
+
+    private static void ApplyStatesFrom(ConversationViewModel source, IEnumerable<TweetCardModel> targets)
+    {
+        var fresh = new Dictionary<string, TweetCardModel>(StringComparer.Ordinal);
+        foreach (var tweet in source.Tweets)
+        {
+            fresh.TryAdd(tweet.Id, tweet);
+        }
+
+        foreach (var target in targets)
+        {
+            if (fresh.TryGetValue(target.Id, out var tweet) && !ReferenceEquals(tweet, target))
+            {
+                target.ApplyRefresh(tweet);
+            }
+        }
+    }
+
     /// <summary>保存用の定義。派生クラスは種別固有の値を足す。</summary>
     public virtual DeckColumnDefinition ToDefinition() => new()
     {
@@ -414,10 +528,11 @@ public abstract partial class ColumnViewModelBase : ObservableObject
         Width = Width,
     };
 
-    /// <summary>カラムを閉じるときに呼ぶ。タイマーを止める。</summary>
+    /// <summary>カラムを閉じるときに呼ぶ。タイマーと会話の読み込みを止める。</summary>
     public void Detach()
     {
         StopTimer();
+        CloseConversation();
         Interlocked.Increment(ref _loadVersion);
     }
 
